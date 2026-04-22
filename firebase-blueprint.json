@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "SiteRating": {
+      "title": "SiteRating",
+      "description": "Evaluation of the site from 1 to 5 stars.",
+      "type": "object",
+      "properties": {
+        "rating": {
+          "type": "number",
+          "description": "Star rating between 0 and 5."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who submitted the rating, ensuring 1 rating per user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "When the rating was created."
+        }
+      },
+      "required": ["rating", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "evaluations/{userId}": {
+      "schema": {
+        "$ref": "#/entities/SiteRating"
+      },
+      "description": "Stores user evaluations keyed by their own UID to ensure only one evaluation per user."
+    }
+  }
+}

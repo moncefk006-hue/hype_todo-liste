@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() {
+      // Only moncefk006@gmail.com can read all evaluations
+      return isSignedIn() && request.auth.token.email == 'moncefk006@gmail.com' && request.auth.token.email_verified == true;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidSiteRating(data) {
+      return data.keys().hasAll(['rating', 'userId', 'createdAt']) && data.keys().size() == 3
+        && data.rating is number && data.rating >= 0 && data.rating <= 5
+        && data.userId is string && data.userId == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
+    match /evaluations/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      
+      allow create: if isValidId(userId) && isOwner(userId) && isValidSiteRating(incoming());
+      
+      allow update: if isValidId(userId) && isOwner(userId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'createdAt'])
+        && incoming().rating is number && incoming().rating >= 0 && incoming().rating <= 5
+        && incoming().createdAt == request.time
+        && incoming().userId == existing().userId
+      );
+    }
+  }
+}
